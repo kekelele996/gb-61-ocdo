@@ -20,7 +20,12 @@ func NewUserGardenRepository(db *gorm.DB) *UserGardenRepository {
 
 // Create inserts a garden item.
 func (r *UserGardenRepository) Create(g *model.UserGarden) error {
-	if err := r.db.Create(g).Error; err != nil {
+	return r.CreateTx(r.db, g)
+}
+
+// CreateTx inserts a garden item inside an existing transaction.
+func (r *UserGardenRepository) CreateTx(tx *gorm.DB, g *model.UserGarden) error {
+	if err := tx.Create(g).Error; err != nil {
 		if isDuplicate(err) {
 			return ErrDuplicate
 		}
@@ -31,8 +36,13 @@ func (r *UserGardenRepository) Create(g *model.UserGarden) error {
 
 // Find locates a garden item by user and plant.
 func (r *UserGardenRepository) Find(userID, plantID uint) (*model.UserGarden, error) {
+	return r.FindTx(r.db, userID, plantID)
+}
+
+// FindTx locates a garden item by user and plant inside an existing transaction.
+func (r *UserGardenRepository) FindTx(tx *gorm.DB, userID, plantID uint) (*model.UserGarden, error) {
 	var g model.UserGarden
-	if err := r.db.Where("user_id = ? AND plant_species_id = ?", userID, plantID).First(&g).Error; err != nil {
+	if err := tx.Where("user_id = ? AND plant_species_id = ?", userID, plantID).First(&g).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrNotFound
 		}
@@ -56,6 +66,12 @@ func (r *UserGardenRepository) FindByID(id uint) (*model.UserGarden, error) {
 // Update persists a garden item.
 func (r *UserGardenRepository) Update(g *model.UserGarden) error {
 	return r.db.Save(g).Error
+}
+
+// UpdateReminderIDTx links a care reminder to a garden item in a transaction.
+func (r *UserGardenRepository) UpdateReminderIDTx(tx *gorm.DB, id, reminderID uint) error {
+	return tx.Model(&model.UserGarden{}).Where("id = ?", id).
+		Update("care_reminder_id", reminderID).Error
 }
 
 // Delete removes a garden item by id.

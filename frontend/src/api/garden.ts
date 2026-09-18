@@ -1,12 +1,12 @@
 import request from '@/utils/request'
-import type { UserGarden } from '@/types/api'
+import type { GardenAddResult, GardenItem, UserGarden } from '@/types/api'
 
 export function listGardens() {
-  return request.get<never, UserGarden[]>('/gardens')
+  return request.get<never, GardenItem[]>('/gardens')
 }
 
 export function addGarden(payload: { plant_species_id: number; nickname?: string; owned_since?: string; location?: string }) {
-  return request.post<never, UserGarden>('/gardens', payload)
+  return request.post<never, GardenAddResult>('/gardens', payload)
 }
 
 export function bindReminder(id: number, careReminderId: number) {

@@ -29,6 +29,7 @@ export interface CareReminder {
   task_title: string
   remind_date: string
   frequency: string
+  frequency_text?: string
   status: 'pending' | 'done' | 'overdue'
   created_at: string
 }
@@ -42,6 +43,22 @@ export interface UserGarden {
   location: string
   care_reminder_id: number
   created_at: string
+}
+
+// GardenItem is the enriched garden entry returned by GET /gardens and embedded
+// in the POST /gardens result.
+export interface GardenItem extends UserGarden {
+  plant_name: string
+  watering_frequency_text: string
+  watering_plan_text: string
+  first_watering_date: string | null
+}
+
+// GardenAddResult is the POST /gardens response. duplicated=true means the
+// submission was deduped (refresh/concurrent repeat): the existing single entry
+// is returned without creating another reminder.
+export interface GardenAddResult extends GardenItem {
+  duplicated: boolean
 }
 
 export interface DiseasePest {

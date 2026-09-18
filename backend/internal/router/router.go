@@ -34,7 +34,7 @@ func Setup(cfg *config.Config, db *gorm.DB, logger *slog.Logger) *gin.Engine {
 	pestService := service.NewDiseasePestService(pestRepo, logger)
 	reminderService := service.NewCareReminderService(reminderRepo, logger)
 	favoriteService := service.NewFavoriteService(favoriteRepo, logger)
-	gardenService := service.NewUserGardenService(gardenRepo, logger)
+	gardenService := service.NewUserGardenService(db, gardenRepo, plantRepo, reminderRepo, logger)
 	questionService := service.NewQuestionService(questionRepo, answerRepo, userService, logger)
 	answerService := service.NewAnswerService(db, answerRepo, questionRepo, logger)
 

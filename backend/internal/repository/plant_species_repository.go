@@ -41,6 +41,18 @@ func (r *PlantSpeciesRepository) FindByID(id uint) (*model.PlantSpecies, error) 
 	return &p, nil
 }
 
+// FindByIDs locates plant species by primary key ids.
+func (r *PlantSpeciesRepository) FindByIDs(ids []uint) ([]model.PlantSpecies, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	var items []model.PlantSpecies
+	if err := r.db.Where("id IN ?", ids).Find(&items).Error; err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 // Update persists changes on a plant species.
 func (r *PlantSpeciesRepository) Update(p *model.PlantSpecies) error {
 	return r.db.Save(p).Error

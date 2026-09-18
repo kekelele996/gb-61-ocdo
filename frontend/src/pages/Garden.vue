@@ -8,12 +8,29 @@
           <el-table :data="gardenItems" empty-text="花园还是空的，去品种库添加吧">
             <el-table-column label="植物">
               <template #default="{ row }">
-                <span class="garden-name">{{ row.nickname || row.plant_species_id }}</span>
+                <span class="garden-name">{{ row.nickname || row.plant_name || row.plant_species_id }}</span>
+                <span v-if="row.plant_name && row.nickname && row.nickname !== row.plant_name" class="plant-subname">
+                  （{{ row.plant_name }}）
+                </span>
               </template>
             </el-table-column>
             <el-table-column label="位置" prop="location" />
-            <el-table-column label="拥有时间">
+            <el-table-column label="入圃时间">
               <template #default="{ row }">{{ formatDate(row.owned_since) }}</template>
+            </el-table-column>
+            <el-table-column label="浇水计划" min-width="150">
+              <template #default="{ row }">
+                <el-tag :type="row.first_watering_date ? 'success' : 'info'" size="small">
+                  {{ row.watering_plan_text }}
+                </el-tag>
+                <div class="water-freq">品种：{{ row.watering_frequency_text || '未知' }}</div>
+              </template>
+            </el-table-column>
+            <el-table-column label="首次浇水提醒" width="130">
+              <template #default="{ row }">
+                <span v-if="row.first_watering_date">{{ formatDate(row.first_watering_date) }}</span>
+                <span v-else class="pending-text">待设置</span>
+              </template>
             </el-table-column>
             <el-table-column label="操作" width="100">
               <template #default="{ row }">
@@ -51,9 +68,9 @@ import { listFavorites } from '@/api/favorite'
 import { listReminders, deleteReminder, updateReminderStatus } from '@/api/reminder'
 import { FavoriteTargetTypeMap, type Favorite, type FavoriteTargetType } from '@/constants/favorite'
 import { formatDate } from '@/utils/dateFormat'
-import type { CareReminder, UserGarden } from '@/types/api'
+import type { CareReminder, GardenItem } from '@/types/api'
 
-const gardenItems = ref<UserGarden[]>([])
+const gardenItems = ref<GardenItem[]>([])
 const favorites = ref<Favorite[]>([])
 const reminders = ref<CareReminder[]>([])
 
@@ -82,4 +99,7 @@ async function removeReminder(id: number) {
 .page { max-width: 1200px; margin: 0 auto; }
 .block { margin-top: 16px; }
 .garden-name { font-weight: 600; }
+.plant-subname { color: #909399; font-size: 12px; margin-left: 4px; }
+.water-freq { color: #909399; font-size: 12px; margin-top: 2px; }
+.pending-text { color: #909399; }
 </style>

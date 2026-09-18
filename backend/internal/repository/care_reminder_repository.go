@@ -21,7 +21,24 @@ func NewCareReminderRepository(db *gorm.DB) *CareReminderRepository {
 
 // Create inserts a reminder.
 func (r *CareReminderRepository) Create(m *model.CareReminder) error {
-	return r.db.Create(m).Error
+	return r.CreateTx(r.db, m)
+}
+
+// CreateTx inserts a reminder inside an existing transaction.
+func (r *CareReminderRepository) CreateTx(tx *gorm.DB, m *model.CareReminder) error {
+	return tx.Create(m).Error
+}
+
+// FindByIDs locates reminders by primary key ids.
+func (r *CareReminderRepository) FindByIDs(ids []uint) ([]model.CareReminder, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	var items []model.CareReminder
+	if err := r.db.Where("id IN ?", ids).Find(&items).Error; err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 // FindByID locates a reminder by id.

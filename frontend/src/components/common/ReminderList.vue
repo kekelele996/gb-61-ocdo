@@ -4,8 +4,8 @@
     <el-table-column label="提醒日期" width="120">
       <template #default="{ row }">{{ formatDate(row.remind_date) }}</template>
     </el-table-column>
-    <el-table-column label="频率" width="100">
-      <template #default="{ row }">{{ frequencyText(row.frequency) }}</template>
+    <el-table-column label="频率" width="120">
+      <template #default="{ row }">{{ frequencyText(row) }}</template>
     </el-table-column>
     <el-table-column label="状态" width="110">
       <template #default="{ row }">
@@ -34,8 +34,10 @@ function statusText(s: string): string {
 function statusType(s: string): 'warning' | 'success' | 'danger' {
   return s === 'pending' ? 'warning' : s === 'done' ? 'success' : 'danger'
 }
-function frequencyText(f: string): string {
+function frequencyText(row: CareReminder): string {
+  // 后端已为入圃自动浇水提醒渲染中文计划（每N天/每月（按当日对齐）/待设置）
+  if (row.frequency_text) return row.frequency_text
   const map: Record<string, string> = { daily: '每日', weekly: '每周', monthly: '每月', yearly: '每年' }
-  return map[f] || f || '-'
+  return map[row.frequency] || row.frequency || '-'
 }
 </script>

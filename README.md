@@ -148,8 +148,8 @@ gb-61/
 | GET | /api/v1/favorites | 登录 | 收藏列表 |
 | POST | /api/v1/favorites | 登录（限流） | 添加收藏 |
 | DELETE | /api/v1/favorites/:targetType/:targetId | 登录 | 取消收藏 |
-| GET | /api/v1/gardens | 登录 | 我的花园列表 |
-| POST | /api/v1/gardens | 登录（限流） | 加入我的花园 |
+| GET | /api/v1/gardens | 登录 | 我的花园列表（含品种名、浇水计划、首次浇水提醒日期） |
+| POST | /api/v1/gardens | 登录（限流） | 入圃：按品种浇水频率换算首次浇水提醒，同一人重复入圃幂等去重 |
 | PUT | /api/v1/gardens/:id/reminder | 登录 | 关联养护提醒 |
 | DELETE | /api/v1/gardens/:id | 登录 | 移除花园条目 |
 | GET | /api/v1/questions | 公开 | 问答列表 |

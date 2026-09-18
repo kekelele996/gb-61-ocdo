@@ -25,6 +25,32 @@ func NewCareReminderService(repo *repository.CareReminderRepository, logger *slo
 	return &CareReminderService{repo: repo, logger: logger}
 }
 
+// populateFrequencyText fills the read-only Chinese rendering of the stored
+// frequency code. Auto-created watering reminders carry a "water:..." encoding;
+// manually created reminders keep their raw code, with known presets translated.
+func populateFrequencyText(items []model.CareReminder) {
+	for i := range items {
+		if recurrence, days, ok := DecodeWateringFrequency(items[i].Frequency); ok {
+			items[i].FrequencyText = util.WateringRecurrenceText(recurrence, days)
+			continue
+		}
+		switch items[i].Frequency {
+		case "daily":
+			items[i].FrequencyText = "每日"
+		case "weekly":
+			items[i].FrequencyText = "每周"
+		case "monthly":
+			items[i].FrequencyText = "每月"
+		case "yearly":
+			items[i].FrequencyText = "每年"
+		case "":
+			items[i].FrequencyText = "-"
+		default:
+			items[i].FrequencyText = items[i].Frequency
+		}
+	}
+}
+
 // Create adds a reminder for the current user.
 func (s *CareReminderService) Create(userID uint, m *model.CareReminder) (*model.CareReminder, error) {
 	m.UserID = userID
@@ -40,6 +66,7 @@ func (s *CareReminderService) Create(userID uint, m *model.CareReminder) (*model
 		return nil, fmt.Errorf("care reminder create: %w", err)
 	}
 	s.logger.Info(fmt.Sprintf(constants.LogReminderCreateSuccess, m.TaskTitle), "id", m.ID)
+	populateFrequencyText([]model.CareReminder{*m})
 	return m, nil
 }
 
@@ -52,6 +79,7 @@ func (s *CareReminderService) ListByUser(userID uint, status string) ([]model.Ca
 	if err != nil {
 		return nil, fmt.Errorf("care reminder list: %w", err)
 	}
+	populateFrequencyText(items)
 	return items, nil
 }
 
@@ -61,6 +89,7 @@ func (s *CareReminderService) ListByMonth(userID uint, year, month int) ([]model
 	if err != nil {
 		return nil, fmt.Errorf("care reminder month list: %w", err)
 	}
+	populateFrequencyText(items)
 	return items, nil
 }
 
@@ -94,6 +123,7 @@ func (s *CareReminderService) UpdateStatus(userID, id uint, status string) (*mod
 		return nil, fmt.Errorf("care reminder status update: %w", err)
 	}
 	s.logger.Info(fmt.Sprintf(constants.LogReminderStatusChanged, id, m.Status), "id", id)
+	populateFrequencyText([]model.CareReminder{*m})
 	return m, nil
 }
 

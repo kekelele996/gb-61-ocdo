@@ -80,3 +80,19 @@ func ReminderStatusText(s string) string {
 		return "未知"
 	}
 }
+
+// WateringRecurrenceText renders the watering plan code stored on an
+// auto-created "首次浇水" reminder. An empty/unknown code renders as 待设置.
+func WateringRecurrenceText(recurrence string, intervalDays int) string {
+	switch recurrence {
+	case "interval_days":
+		if intervalDays <= 1 {
+			return "每1天"
+		}
+		return fmt.Sprintf("每%d天", intervalDays)
+	case "monthly":
+		return "每月（按当日对齐）"
+	default:
+		return "待设置"
+	}
+}

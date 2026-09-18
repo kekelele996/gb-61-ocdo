@@ -7,6 +7,7 @@ const (
 	MsgLoginOK              = "登录成功"
 	MsgLogoutOK             = "退出登录成功"
 	MsgPlantAddedToGarden   = "已加入我的花园"
+	MsgPlantAlreadyInGarden = "该植物已在花园中，无需重复入圃"
 	MsgPlantRemovedGarden   = "已从我的花园移除"
 	MsgFavoriteAdded        = "收藏成功"
 	MsgFavoriteRemoved      = "已取消收藏"

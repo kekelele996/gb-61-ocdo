@@ -19,4 +19,8 @@ type CareReminder struct {
 	Frequency      string    `gorm:"size:32" json:"frequency"`
 	Status         string    `gorm:"size:16;default:pending;index" json:"status"`
 	CreatedAt      time.Time `json:"created_at"`
+
+	// FrequencyText is a read-only, non-persisted human rendering of Frequency
+	// (populated by the service for display, e.g. 每3天 / 待设置).
+	FrequencyText string `gorm:"-" json:"frequency_text"`
 }

@@ -36,7 +36,9 @@ func (h *UserGardenHandler) List(c *gin.Context) {
 	c.JSON(http.StatusOK, dto.OK(items))
 }
 
-// Add handles POST /gardens.
+// Add handles POST /gardens. The response carries the enrollment result
+// (garden entry + first watering reminder date) and a duplicated flag so the
+// page can show whether this submission created the entry or was deduplicated.
 func (h *UserGardenHandler) Add(c *gin.Context) {
 	var req dto.GardenAddRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -47,12 +49,21 @@ func (h *UserGardenHandler) Add(c *gin.Context) {
 		PlantSpeciesID: req.PlantSpeciesID, Nickname: req.Nickname,
 		OwnedSince: req.OwnedSince, Location: req.Location,
 	}
-	created, err := h.svc.Add(middleware.GetUserID(c), g)
+	result, err := h.svc.Add(middleware.GetUserID(c), g)
 	if err != nil {
 		c.Error(err)
 		return
 	}
-	c.JSON(http.StatusCreated, dto.OK(created))
+	// A deduped submission (refresh / concurrent double submit) returns 200;
+	// a genuinely created entry returns 201. Either way only one row exists.
+	status := http.StatusCreated
+	if result.Duplicated {
+		status = http.StatusOK
+	}
+	c.JSON(status, dto.OK(dto.GardenAddResult{
+		GardenItem: result.Item,
+		Duplicated: result.Duplicated,
+	}))
 }
 
 // BindReminder handles PUT /gardens/:id/reminder.
