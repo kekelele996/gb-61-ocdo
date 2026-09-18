@@ -6,6 +6,8 @@ import (
 	"log/slog"
 	"time"
 
+	"gorm.io/gorm"
+
 	"github.com/gbplantwiki/gbplantwiki/internal/constants"
 	"github.com/gbplantwiki/gbplantwiki/internal/model"
 	"github.com/gbplantwiki/gbplantwiki/internal/repository"
@@ -14,31 +16,96 @@ import (
 
 // UserGardenService implements "my garden" list logic.
 type UserGardenService struct {
-	repo   *repository.UserGardenRepository
-	logger *slog.Logger
+	db           *gorm.DB
+	repo         *repository.UserGardenRepository
+	plantRepo    *repository.PlantSpeciesRepository
+	reminderRepo *repository.CareReminderRepository
+	logger       *slog.Logger
 }
 
 // NewUserGardenService creates a UserGardenService.
-func NewUserGardenService(repo *repository.UserGardenRepository, logger *slog.Logger) *UserGardenService {
-	return &UserGardenService{repo: repo, logger: logger}
+func NewUserGardenService(db *gorm.DB, repo *repository.UserGardenRepository, plantRepo *repository.PlantSpeciesRepository, reminderRepo *repository.CareReminderRepository, logger *slog.Logger) *UserGardenService {
+	return &UserGardenService{db: db, repo: repo, plantRepo: plantRepo, reminderRepo: reminderRepo, logger: logger}
 }
 
-// Add adds a plant to a user's garden.
-func (s *UserGardenService) Add(userID uint, g *model.UserGarden) (*model.UserGarden, error) {
+// AddWithPlan adds a plant to the user's garden and, when the species water
+// frequency is recognizable, creates the first watering reminder derived from
+// it. Garden record and reminder commit in one transaction so they succeed or
+// fail together. Repeating the same add (refresh / concurrent submit) returns
+// the existing record with created=false and causes no side effects.
+func (s *UserGardenService) AddWithPlan(userID uint, g *model.UserGarden) (*model.UserGarden, *model.CareReminder, bool, error) {
 	g.UserID = userID
 	if g.OwnedSince.IsZero() {
 		g.OwnedSince = time.Now()
 	}
-	if err := s.repo.Create(g); err != nil {
+	plant, err := s.plantRepo.FindByID(g.PlantSpeciesID)
+	if err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			return nil, nil, false, util.NewAppError(404, constants.CodeNotFound,
+				fmt.Sprintf("PlantSpecies[id=%d] not found", g.PlantSpeciesID))
+		}
+		return nil, nil, false, fmt.Errorf("user garden add find plant: %w", err)
+	}
+	firstWater, ok := util.FirstWaterDate(g.OwnedSince, plant.WaterFrequency)
+	if !ok {
+		s.logger.Info(fmt.Sprintf(constants.LogGardenWaterPlanPending, g.PlantSpeciesID, userID, plant.WaterFrequency))
+	}
+	name := g.Nickname
+	if name == "" {
+		name = plant.Name
+	}
+	var reminder *model.CareReminder
+	err = s.db.Transaction(func(tx *gorm.DB) error {
+		if err := s.repo.CreateTx(tx, g); err != nil {
+			return err
+		}
+		if !ok {
+			return nil
+		}
+		reminder = &model.CareReminder{
+			UserID:         userID,
+			PlantSpeciesID: g.PlantSpeciesID,
+			TaskTitle:      fmt.Sprintf("给%s浇水", name),
+			RemindDate:     firstWater,
+			Frequency:      util.WaterFrequencyTag(plant.WaterFrequency),
+			Status:         model.ReminderPending,
+		}
+		if err := s.reminderRepo.CreateTx(tx, reminder); err != nil {
+			return err
+		}
+		g.CareReminderID = reminder.ID
+		return s.repo.UpdateTx(tx, g)
+	})
+	if err != nil {
 		if errors.Is(err, repository.ErrDuplicate) {
-			return nil, util.NewAppError(409, constants.CodeConflict,
-				fmt.Sprintf("UserGarden[user_id=%d plant_id=%d] add failed: already in garden", userID, g.PlantSpeciesID))
+			return s.existingPlan(userID, g.PlantSpeciesID)
 		}
 		s.logger.Error(fmt.Sprintf(constants.LogGardenAddFailed, g.PlantSpeciesID, userID), "error", err)
-		return nil, fmt.Errorf("user garden add: %w", err)
+		return nil, nil, false, fmt.Errorf("user garden add: %w", err)
 	}
 	s.logger.Info(fmt.Sprintf(constants.LogGardenAddSuccess, g.PlantSpeciesID, userID), "id", g.ID)
-	return g, nil
+	return g, reminder, true, nil
+}
+
+// existingPlan loads the previously created garden item and its watering
+// reminder for an idempotent repeat add.
+func (s *UserGardenService) existingPlan(userID, plantID uint) (*model.UserGarden, *model.CareReminder, bool, error) {
+	g, err := s.repo.Find(userID, plantID)
+	if err != nil {
+		return nil, nil, false, fmt.Errorf("user garden add find existing: %w", err)
+	}
+	s.logger.Info(fmt.Sprintf(constants.LogGardenAddDuplicate, plantID, userID), "id", g.ID)
+	if g.CareReminderID == 0 {
+		return g, nil, false, nil
+	}
+	reminder, err := s.reminderRepo.FindByID(g.CareReminderID)
+	if err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			return g, nil, false, nil
+		}
+		return nil, nil, false, fmt.Errorf("user garden add find reminder: %w", err)
+	}
+	return g, reminder, false, nil
 }
 
 // List returns a user's garden items.

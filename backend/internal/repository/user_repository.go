@@ -80,6 +80,11 @@ func (r *UserRepository) List(page, pageSize int) ([]model.User, int64, error) {
 }
 
 func isDuplicate(err error) bool {
-	return err != nil && (strings.Contains(err.Error(), "Duplicate entry") ||
-		strings.Contains(err.Error(), "duplicate key"))
+	if err == nil {
+		return false
+	}
+	msg := err.Error()
+	return strings.Contains(msg, "Duplicate entry") ||
+		strings.Contains(msg, "duplicate key") ||
+		strings.Contains(msg, "UNIQUE constraint failed")
 }

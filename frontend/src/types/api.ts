@@ -44,6 +44,14 @@ export interface UserGarden {
   created_at: string
 }
 
+export interface GardenAddResult {
+  garden: UserGarden
+  reminder: CareReminder | null
+  water_plan_status: 'scheduled' | 'pending'
+  first_water_date: string
+  created: boolean
+}
+
 export interface DiseasePest {
   id: number
   plant_species_id: number

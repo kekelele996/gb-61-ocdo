@@ -24,6 +24,11 @@ func (r *CareReminderRepository) Create(m *model.CareReminder) error {
 	return r.db.Create(m).Error
 }
 
+// CreateTx inserts a reminder within a transaction.
+func (r *CareReminderRepository) CreateTx(tx *gorm.DB, m *model.CareReminder) error {
+	return tx.Create(m).Error
+}
+
 // FindByID locates a reminder by id.
 func (r *CareReminderRepository) FindByID(id uint) (*model.CareReminder, error) {
 	var m model.CareReminder

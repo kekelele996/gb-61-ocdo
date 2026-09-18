@@ -15,6 +15,12 @@
             <el-table-column label="拥有时间">
               <template #default="{ row }">{{ formatDate(row.owned_since) }}</template>
             </el-table-column>
+            <el-table-column label="浇水提醒">
+              <template #default="{ row }">
+                <span v-if="wateringDateOf(row)">{{ wateringDateOf(row) }}</span>
+                <el-tag v-else type="info" size="small">待设置</el-tag>
+              </template>
+            </el-table-column>
             <el-table-column label="操作" width="100">
               <template #default="{ row }">
                 <el-button size="small" type="danger" @click="remove(row.id)">移除</el-button>
@@ -67,6 +73,10 @@ async function remove(id: number) {
   await removeGarden(id)
   gardenItems.value = await listGardens()
   ElMessage.success('已移除')
+}
+function wateringDateOf(row: UserGarden): string {
+  const r = reminders.value.find((x) => x.id === row.care_reminder_id)
+  return r ? formatDate(r.remind_date) : ''
 }
 async function markDone(id: number) {
   await updateReminderStatus(id, 'done')

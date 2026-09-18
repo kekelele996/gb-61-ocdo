@@ -29,6 +29,17 @@ func (r *UserGardenRepository) Create(g *model.UserGarden) error {
 	return nil
 }
 
+// CreateTx inserts a garden item within a transaction.
+func (r *UserGardenRepository) CreateTx(tx *gorm.DB, g *model.UserGarden) error {
+	if err := tx.Create(g).Error; err != nil {
+		if isDuplicate(err) {
+			return ErrDuplicate
+		}
+		return err
+	}
+	return nil
+}
+
 // Find locates a garden item by user and plant.
 func (r *UserGardenRepository) Find(userID, plantID uint) (*model.UserGarden, error) {
 	var g model.UserGarden
@@ -56,6 +67,11 @@ func (r *UserGardenRepository) FindByID(id uint) (*model.UserGarden, error) {
 // Update persists a garden item.
 func (r *UserGardenRepository) Update(g *model.UserGarden) error {
 	return r.db.Save(g).Error
+}
+
+// UpdateTx persists a garden item within a transaction.
+func (r *UserGardenRepository) UpdateTx(tx *gorm.DB, g *model.UserGarden) error {
+	return tx.Save(g).Error
 }
 
 // Delete removes a garden item by id.

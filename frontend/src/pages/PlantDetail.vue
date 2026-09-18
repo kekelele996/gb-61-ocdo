@@ -20,6 +20,19 @@
           <FavoriteButton target-type="plant" :target-id="plant.id" />
           <el-button type="success" :loading="gardenLoading" @click="addToGarden">🌱 加入我的花园</el-button>
         </div>
+        <el-alert
+          v-if="gardenResult"
+          class="garden-result"
+          :type="gardenResultAlertType"
+          :title="gardenResultTitle"
+          show-icon
+          :closable="false"
+        >
+          <p v-if="gardenResult.water_plan_status === 'scheduled'">
+            首次浇水提醒日期：{{ formatDate(gardenResult.first_water_date) }}
+          </p>
+          <p v-else>浇水计划待设置：无法识别该品种的浇水频率（{{ plant.water_frequency || '未填写' }}），可在花园中手动创建提醒。</p>
+        </el-alert>
       </el-card>
     </div>
 
@@ -35,7 +48,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { getPlant } from '@/api/plant'
@@ -46,7 +59,8 @@ import ImageCarousel from '@/components/common/ImageCarousel.vue'
 import FavoriteButton from '@/components/common/FavoriteButton.vue'
 import DiseaseCard from '@/components/common/DiseaseCard.vue'
 import { PlantTypeMap, type PlantSpecies } from '@/constants/plant'
-import type { DiseasePest } from '@/types/api'
+import { formatDate } from '@/utils/dateFormat'
+import type { DiseasePest, GardenAddResult } from '@/types/api'
 
 const route = useRoute()
 const router = useRouter()
@@ -54,6 +68,17 @@ const { isLoggedIn } = useAuth()
 const plant = ref<PlantSpecies | null>(null)
 const pests = ref<DiseasePest[]>([])
 const gardenLoading = ref(false)
+const gardenResult = ref<GardenAddResult | null>(null)
+
+const gardenResultAlertType = computed(() => {
+  const r = gardenResult.value
+  if (!r) return 'info'
+  if (!r.created) return 'info'
+  return r.water_plan_status === 'scheduled' ? 'success' : 'warning'
+})
+const gardenResultTitle = computed(() =>
+  gardenResult.value?.created ? '入圃成功' : '该植物已在花园中，重复入圃已忽略',
+)
 
 onMounted(async () => {
   plant.value = await getPlant(route.params.id as string)
@@ -68,8 +93,15 @@ async function addToGarden() {
   }
   gardenLoading.value = true
   try {
-    await addGarden({ plant_species_id: plant.value!.id, nickname: plant.value!.name })
-    ElMessage.success('已加入我的花园')
+    const res = await addGarden({ plant_species_id: plant.value!.id, nickname: plant.value!.name })
+    gardenResult.value = res
+    if (!res.created) {
+      ElMessage.info('该植物已在花园中')
+    } else if (res.water_plan_status === 'scheduled') {
+      ElMessage.success('已加入我的花园')
+    } else {
+      ElMessage.warning('已加入我的花园，浇水计划待设置')
+    }
   } finally {
     gardenLoading.value = false
   }
@@ -83,4 +115,5 @@ async function addToGarden() {
 .alias { color: #999; }
 .desc { margin-top: 12px; line-height: 1.6; }
 .actions { margin-top: 16px; display: flex; gap: 12px; }
+.garden-result { margin-top: 16px; }
 </style>

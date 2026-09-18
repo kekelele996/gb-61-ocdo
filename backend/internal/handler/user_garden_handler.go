@@ -47,12 +47,21 @@ func (h *UserGardenHandler) Add(c *gin.Context) {
 		PlantSpeciesID: req.PlantSpeciesID, Nickname: req.Nickname,
 		OwnedSince: req.OwnedSince, Location: req.Location,
 	}
-	created, err := h.svc.Add(middleware.GetUserID(c), g)
+	created, reminder, isNew, err := h.svc.AddWithPlan(middleware.GetUserID(c), g)
 	if err != nil {
 		c.Error(err)
 		return
 	}
-	c.JSON(http.StatusCreated, dto.OK(created))
+	resp := dto.GardenAddResponse{Garden: created, Reminder: reminder, Created: isNew, WaterPlanStatus: dto.WaterPlanPending}
+	if reminder != nil {
+		resp.WaterPlanStatus = dto.WaterPlanScheduled
+		resp.FirstWaterDate = util.FormatDate(reminder.RemindDate)
+	}
+	if isNew {
+		c.JSON(http.StatusCreated, dto.OK(resp))
+		return
+	}
+	c.JSON(http.StatusOK, dto.OK(resp))
 }
 
 // BindReminder handles PUT /gardens/:id/reminder.
